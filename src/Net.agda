@@ -1,9 +1,10 @@
 module Net where
 
-open import Data.Nat using (ℕ; _<_; s≤s; z≤n)
+open import Data.Nat using (ℕ; _<_; s≤s; z≤n; suc)
 open import Data.Vec.Base using (Vec)
 open import Data.String using (String)
 open import Data.Product using (_×_; _,_; Σ; Σ-syntax; proj₁)
+open import Data.Sum using (_⊎_; inj₁; inj₂)
 open import Data.Fin using (Fin)
 open import Data.Fin.Patterns
 open import Data.List using (List; []; _∷_)
@@ -29,14 +30,14 @@ record NodeContext : Set₁ where
     P⁻ : T → ℕ
 
 record Net {n : ℕ} (nc : NodeContext) : Set where
-  ncT = NodeContext.T nc
+  T = NodeContext.T nc
   ncP⁺ = NodeContext.P⁺ nc
   ncP⁻ = NodeContext.P⁻ nc
 
   field
     -- we'll denote the set of nodes as Fin n
     -- as that gives us a finite set and a way to index one of the elements
-    τ : Fin n → ncT
+    τ : Fin n → T
   
   -- a pair (n, m) such that n is a node and m is <= number of positive ports for this node
   -- (node 0, port⁺0), (node 0, port⁺1), ...
@@ -74,3 +75,60 @@ example₁ = record {
     }
   }
 
+
+Fin⁰ : ℕ → Set
+Fin⁰ 0 = ⊥
+Fin⁰ (suc n) = Σ[ f ∈ Fin (suc n) ] (f ≢ Fin.zero)
+
+record Rule {on : ℕ} (nc : NodeContext) : Set where
+  T = NodeContext.T nc
+  ncP⁺ = NodeContext.P⁺ nc
+  ncP⁻ = NodeContext.P⁻ nc
+
+  field
+    I⁺ I⁻ : T
+  
+  -- The set B+ := {n | 0 < n < P⁺(I⁺) } + {n ∈ N | n < P⁺(I⁻)} of positive boundary ports where + denotes a disjoint union.
+  B⁺ = (Fin⁰ (ncP⁺ I⁺)) ⊎ Fin (ncP⁺ I⁻)
+  -- The set B- := {n | 0 < n < P⁻(I⁻) } + {n ∈ N | n < P⁻(I⁺)} of negative boundary ports where + denotes a disjoint union.
+  B⁻ = (Fin⁰ (ncP⁻ I⁻)) ⊎ Fin (ncP⁻ I⁺)
+
+  field
+    -- this function assigns a type to on nodes
+    o : Fin on → T
+    -- Fin on does not correlate directly to Fin n of the outer net
+    -- convert : ∀ {n} → Fin on → Fin n
+   
+  O⁺ = Σ[ n ∈ Fin on ] Fin (ncP⁺ (o n))
+  O⁻ = Σ[ n ∈ Fin on ] Fin (ncP⁻ (o n))
+  
+  field
+    i : B⁻ ⊎ O⁺ ≃ B⁺ ⊎ O⁻
+
+--   |
+--   -
+--   δ⁺+ ===    
+--   +
+--   |
+--   -
+--   δ⁻+ ===
+--   +
+--   |
+
+-- Rule₁ : Rule {0} Context₁
+-- Rule₁ = record {
+--     I⁺ = δ
+--   ; I⁻ = δ
+--   ; o = λ{()}
+-- --  ; convert = {!!}
+--   ; i = record {
+--       to = λ{
+--         (inj₁ (inj₁ (0F , snd))) → inj₁ (inj₁ (1F , λ{()}))
+--       ; (inj₁ (inj₂ 0F)) → inj₁ {!!}
+--       }
+--     ; from = {!!}
+--     ; from∘to = {!!}
+--     ; to∘from = {!!}
+--     }
+--   }
+  
